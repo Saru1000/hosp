@@ -23,8 +23,9 @@ date_min, date_max = df["date"].min(), df["date"].max()
 date_range = st.sidebar.date_input("Date range", (date_min, date_max))
 mask = (df["date"] >= pd.to_datetime(date_range[0])) & (df["date"] <= pd.to_datetime(date_range[1]))
 for col in ["property_type","location","loyalty_tier","segment","booking_channel","risk_level"]:
-    opts = st.sidebar.multiselect(col, sorted(df[col].unique()), default=sorted(df[col].unique()))
-    mask &= df[col].isin(opts)
+    unique_vals = df[col].dropna().unique().tolist()
+    vals = st.sidebar.multiselect(col, sorted(unique_vals), default=unique_vals)
+    mask &= df[col].isin(vals)
 filtered_df = df[mask]
 
 # Page Nav
@@ -43,10 +44,9 @@ def download_button(obj, filename, label):
     else:
         buffer.write(obj.encode())
     b64 = base64.b64encode(buffer.getvalue()).decode()
-    href = f'<a href="data:text/csv;base64,{b64}" download="{filename}">{label}</a>'
-    st.markdown(href, unsafe_allow_html=True)
+    st.markdown(f'<a href="data:text/csv;base64,{b64}" download="{filename}">{label}</a>', unsafe_allow_html=True)
 
-# 1 Data Visualisation (few charts for brevity)
+# 1 Data Visualisation
 if page == "Data Visualisation":
     st.subheader("Revenue over Time")
     st.plotly_chart(px.line(filtered_df, x="date", y="revenue", color="property_type"), use_container_width=True)
@@ -76,7 +76,7 @@ elif page == "Recommendation & Sentiment":
     st.subheader("Sentiment Histogram")
     st.plotly_chart(px.histogram(filtered_df, x="sentiment_score", nbins=40), use_container_width=True)
 
-# 4 Classification (simplified to show patch)
+# 4 Classification
 elif page == "Classification":
     target = st.selectbox("Target label", ["promo_response"])
     X = pd.get_dummies(filtered_df.drop(columns=[target]), drop_first=True)
@@ -84,5 +84,3 @@ elif page == "Classification":
     res = train_classifiers(X,y)
     metric_df = pd.DataFrame({k:{"Train":v["train_acc"],"Test":v["test_acc"]} for k,v in res.items()}).T
     st.dataframe(metric_df)
-
-# other pages omitted for brevity
